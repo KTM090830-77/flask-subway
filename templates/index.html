@@ -128,7 +128,7 @@
         <div id="results">
             {% if results %}
                 {% if mode == 'seoul' %}
-                    {% set types = ['엘리베이터', '에스컬레이터', '휠체어리프트'] %}
+                    {% set types = ['엘리베이터', '에스컬레이터', '휠체어 리프트'] %}
                     {% for facility_type in types %}
                         {% set filtered = results | selectattr("type", "equalto", facility_type) | list %}
                         {% if filtered %}
