@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8" />
+    <title>지하철 역 시설 정보 조회</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f8f9fa;
+            margin: 0;
+            padding: 0;
+        }
+
+        .header {
+            background-color: #2c3e50;
+            color: white;
+            padding: 20px 0;
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 30px auto;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+
+        .search-box {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .search-box input[type=text],
+        .search-box select {
+            padding: 6px;
+            font-size: 14px;
+            width: 300px;
+        }
+
+        .search-box button {
+            padding: 6px 12px;
+            font-size: 14px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .search-box label {
+            font-weight: normal;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        table, th, td {
+            border: 1px solid #dee2e6;
+        }
+
+        th, td {
+            padding: 10px;
+            text-align: center;
+        }
+
+        th {
+            background-color: #f1f3f5;
+        }
+
+        .status {
+            font-weight: bold;
+        }
+
+        .station-name img {
+            height: 20px;
+            vertical-align: middle;
+            margin-right: 5px;
+        }
+
+        .section-title {
+            font-weight: bold;
+            font-size: 18px;
+            margin-top: 30px;
+            border-bottom: 2px solid #333;
+            padding-bottom: 6px;
+        }
+    </style>
+    <script>
+        function onModeChange() {
+            const mode = document.querySelector('input[name="mode"]:checked').value;
+            document.getElementById('seoul-input').style.display = mode === 'seoul' ? 'inline-block' : 'none';
+            document.getElementById('daejeon-select').style.display = mode === 'daejeon' ? 'inline-block' : 'none';
+        }
+        window.onload = onModeChange;
+    </script>
+</head>
+<body>
+    <div class="header">지하철 역 시설 정보 조회</div>
+    <div class="container">
+        <form method="POST" action="/">
+            <div class="search-box">
+                <label><input type="radio" name="mode" value="seoul" onchange="onModeChange()" {% if mode == 'seoul' %}checked{% endif %}> 서울 모드 (역명 검색)</label>
+                <label><input type="radio" name="mode" value="daejeon" onchange="onModeChange()" {% if mode == 'daejeon' %}checked{% endif %}> 대전 모드 (역 선택)</label>
+            </div>
+            <div class="search-box">
+                <input type="text" name="station" id="seoul-input" placeholder="역명을 입력하세요..." value="{{ search_term }}" {% if mode != 'seoul' %}style="display:none;"{% endif %} />
+                <select name="station" id="daejeon-select" {% if mode != 'daejeon' %}style="display:none;"{% endif %}>
+                    <option value="">-- 역 선택 --</option>
+                    {% for st in daejeon_stations %}
+                        <option value="{{ st }}" {% if st == search_term %}selected{% endif %}>{{ st }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit">검색</button>
+            </div>
+        </form>
+
+        <div id="results">
+            {% if results %}
+                {% if mode == 'seoul' %}
+                    {% set types = ['엘리베이터', '에스컬레이터', '휠체어리프트'] %}
+                    {% for facility_type in types %}
+                        {% set filtered = results | selectattr("type", "equalto", facility_type) | list %}
+                        {% if filtered %}
+                            <div class="section-title">{{ facility_type }}</div>
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>역 이름</th>
+                                        <th>시설 유형</th>
+                                        <th>상태</th>
+                                        <th>위치</th>
+                                        <th>층</th>
+                                        <th>방향</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in filtered %}
+                                        <tr>
+                                            <td class="station-name">
+                                                {% if item.image_path %}
+                                                    <img src="{{ url_for('static', filename=item.image_path) }}" alt="라인 이미지">
+                                                {% endif %}
+                                                {{ item.station }}
+                                            </td>
+                                            <td>{{ item.type }}</td>
+                                            <td class="status" style="color: {{ item.status_color }}">{{ item.status }}</td>
+                                            <td>{{ item.location }}</td>
+                                            <td>{{ item.floor }}</td>
+                                            <td>{{ item.direction }}</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        {% endif %}
+                    {% endfor %}
+                {% elif mode == 'daejeon' %}
+                    <div class="section-title">검색 결과</div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>역 이름</th>
+                                <th>점검일</th>
+                                <th>계획ID</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in results %}
+                                <tr>
+                                    <td>{{ item.place }}</td>
+                                    <td>{{ item.planDt }}</td>
+                                    <td>{{ item.planId }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% endif %}
+            {% else %}
+                <p>검색 결과가 없습니다.</p>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>
